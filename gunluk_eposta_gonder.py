@@ -217,15 +217,29 @@ def send_day_email(day_no: int) -> bool:
 
 
 def main():
+    import time
     now_tr = get_turkey_now()
     today_str = now_tr.strftime("%Y-%m-%d")
     print(f"[*] Türkiye Saati: {now_tr.strftime('%Y-%m-%d %H:%M:%S')}")
 
     input_day = os.environ.get("INPUT_DAY", "").strip()
     force_send = os.environ.get("FORCE_SEND", "false").strip().lower() == "true"
+    event_name = os.environ.get("GITHUB_EVENT_NAME", "").strip()
 
     if len(sys.argv) > 1 and sys.argv[1].isdigit():
         input_day = sys.argv[1]
+
+    # Eğer otomatik zamanlayıcı (schedule) ile tetiklendiyse saat 18:00 kontrolü yap
+    if event_name == "schedule" and not force_send and not input_day:
+        if now_tr.hour < 17 or (now_tr.hour == 17 and now_tr.minute < 45):
+            print(f"[BİLGİ] Henüz saat 18:00 olmadı ({now_tr.strftime('%H:%M')}). Gönderim saati 18:00'dir.")
+            return
+        elif now_tr.hour == 17 and now_tr.minute >= 45:
+            wait_sec = (59 - now_tr.minute) * 60 + (60 - now_tr.second)
+            print(f"[*] Saat 18:00'e {wait_sec} saniye var; tam 18:00:00'de göndermek için bekleniyor...")
+            time.sleep(wait_sec)
+            now_tr = get_turkey_now()
+            today_str = now_tr.strftime("%Y-%m-%d")
 
     if input_day and input_day.isdigit():
         day_no = int(input_day)

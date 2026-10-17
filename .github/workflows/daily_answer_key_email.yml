@@ -2,12 +2,11 @@ name: Emir 17-23 Ekim 2026 Gunluk Cevap Anahtari E-Posta
 
 on:
   schedule:
-    # Türkiye saati (UTC+3) ile 18:00'den (15:00 UTC) gece 23:45'e (20:45 UTC) kadar
-    # her 15 dakikada bir (18:00, 18:15, 18:30, 18:45, 19:00, 19:15, ...) kontrol eder.
-    # E-posta o gün gönderildiyse sent_history.json sayesinde mükerrer gönderim yapmaz;
-    # GitHub sunucu yoğunluğu nedeniyle 18:00 çalışması gecikirse/atlanırsa ilk 15 dk'lık
-    # döngüde otomatik olarak gönderir.
-    - cron: '*/15 15-20 * * *'
+    # GitHub Actions ücretsiz zamanlayıcı kuyruğu yoğun saatlerde 2-3 saat gecikebildiği için
+    # kuyruğa 11:00 UTC'den (14:00 TRT) itibaren her 15 dakikada bir (off-peak dakikalarda) girer.
+    # Python betiği Türkiye saati 18:00 olmadan gönderim yapmaz (17:45-18:00 arasında yakalarsa
+    # tam 18:00:00'a kadar bekleyip tam 18:00'de gönderir; 18:00 sonrasında yakalarsa anında gönderir).
+    - cron: '3,18,33,48 11-20 * * *'
   workflow_dispatch:
     inputs:
       day:
@@ -30,7 +29,7 @@ concurrency:
 jobs:
   send-daily-answer-key:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 20
 
     steps:
       - name: Checkout Repository
@@ -47,13 +46,14 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Send Daily Answer Key Email (18:00 TRT + 15 Min Retry)
+      - name: Send Daily Answer Key Email (18:00 TRT Gate + 15 Min Retry)
         env:
           PYTHONUNBUFFERED: "1"
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           INPUT_DAY: ${{ inputs.day }}
           FORCE_SEND: ${{ inputs.force }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
         run: |
           python -u gunluk_eposta_gonder.py
 
