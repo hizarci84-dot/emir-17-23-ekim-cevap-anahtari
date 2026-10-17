@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+extracted_pages/
+extracted_pages_17_23/
+cropped_figs/
+deploy_to_github.py

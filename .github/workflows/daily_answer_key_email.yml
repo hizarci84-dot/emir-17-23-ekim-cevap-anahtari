@@ -1,0 +1,60 @@
+name: Emir 17-23 Ekim 2026 Gunluk Cevap Anahtari E-Posta
+
+on:
+  schedule:
+    # Türkiye saati (UTC+3) ile 18:00 = 15:00 UTC
+    # GitHub Actions yoğunluk gecikmesine karşı 18:00 ve 18:15 kontrolü (günde yalnızca 1 kez gönderir)
+    - cron: '0 15 * * *'
+    - cron: '15 15 * * *'
+  workflow_dispatch:
+    inputs:
+      day:
+        description: 'Gonderilecek Gun Numarasi (1-6, bos birakilirsa bugunun gunu gonderilir)'
+        required: false
+        default: ''
+      force:
+        description: 'Bugun daha once gonderilmis olsa bile tekrar gonder'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: emir-daily-email
+  cancel-in-progress: false
+
+jobs:
+  send-daily-answer-key:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Send Daily Answer Key Email (18:00 TRT)
+        env:
+          PYTHONUNBUFFERED: "1"
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          INPUT_DAY: ${{ inputs.day }}
+          FORCE_SEND: ${{ inputs.force }}
+        run: |
+          python -u gunluk_eposta_gonder.py
+
+      - name: Commit & Push Sent History
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git pull origin main --rebase || true
+          git add data/sent_history.json || true
+          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: record daily answer key email sent [skip ci]" && git push origin main)
