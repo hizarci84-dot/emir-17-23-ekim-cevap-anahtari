@@ -201,12 +201,19 @@ def send_day_email(day_no: int) -> bool:
     msg["To"] = ", ".join(RECIPIENTS)
     msg.attach(MIMEText(html_body, "html", "utf-8"))
 
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30) as server:
-        server.login(sender_email, app_password)
-        server.sendmail(sender_email, RECIPIENTS, msg.as_string())
-
-    print(f"[BAŞARILI] {day_no}. Gün cevap anahtarı {', '.join(RECIPIENTS)} adreslerine gönderildi.")
-    return True
+    import time
+    for attempt in range(1, 4):
+        try:
+            with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30) as server:
+                server.login(sender_email, app_password)
+                server.sendmail(sender_email, RECIPIENTS, msg.as_string())
+            print(f"[BAŞARILI] {day_no}. Gün cevap anahtarı {', '.join(RECIPIENTS)} adreslerine gönderildi (Deneme {attempt}).")
+            return True
+        except Exception as exc:
+            print(f"[UYARI] SMTP gönderim denemesi {attempt}/3 başarısız: {exc}")
+            if attempt < 3:
+                time.sleep(10)
+    return False
 
 
 def main():

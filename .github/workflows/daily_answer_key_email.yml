@@ -2,10 +2,12 @@ name: Emir 17-23 Ekim 2026 Gunluk Cevap Anahtari E-Posta
 
 on:
   schedule:
-    # Türkiye saati (UTC+3) ile 18:00 = 15:00 UTC
-    # GitHub Actions yoğunluk gecikmesine karşı 18:00 ve 18:15 kontrolü (günde yalnızca 1 kez gönderir)
-    - cron: '0 15 * * *'
-    - cron: '15 15 * * *'
+    # Türkiye saati (UTC+3) ile 18:00'den (15:00 UTC) gece 23:45'e (20:45 UTC) kadar
+    # her 15 dakikada bir (18:00, 18:15, 18:30, 18:45, 19:00, 19:15, ...) kontrol eder.
+    # E-posta o gün gönderildiyse sent_history.json sayesinde mükerrer gönderim yapmaz;
+    # GitHub sunucu yoğunluğu nedeniyle 18:00 çalışması gecikirse/atlanırsa ilk 15 dk'lık
+    # döngüde otomatik olarak gönderir.
+    - cron: '*/15 15-20 * * *'
   workflow_dispatch:
     inputs:
       day:
@@ -36,12 +38,16 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Pull Latest Sent History
+        run: |
+          git pull origin main --rebase || true
+
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Send Daily Answer Key Email (18:00 TRT)
+      - name: Send Daily Answer Key Email (18:00 TRT + 15 Min Retry)
         env:
           PYTHONUNBUFFERED: "1"
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
@@ -55,6 +61,11 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git pull origin main --rebase || true
           git add data/sent_history.json || true
-          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: record daily answer key email sent [skip ci]" && git push origin main)
+          if git diff --quiet && git diff --staged --quiet; then
+            echo "Gönderim kaydı zaten güncel, commit atlanıyor."
+          else
+            git commit -m "chore: record daily answer key email sent [skip ci]"
+            git pull origin main --rebase || true
+            git push origin main
+          fi
