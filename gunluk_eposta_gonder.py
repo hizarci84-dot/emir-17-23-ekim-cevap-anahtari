@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-EMİR 17-23 EKİM 2026 GÜNLÜK CEVAP ANAHTARI E-POSTA GÖNDERİM BOTU (GITHUB ACTIONS BULUT)
+EMİR 1-7 KASIM TARİHLERİ ÜSLÜ SAYILAR ÖDEVLENDİRME
+GÜNLÜK CEVAP ANAHTARI E-POSTA GÖNDERİM BOTU (GITHUB ACTIONS BULUT)
 Alıcılar:
   - emiiruysal@gmail.com
   - gonuluysal532@gmail.com
@@ -19,7 +20,7 @@ from email.mime.text import MIMEText
 
 sys.stdout.reconfigure(encoding="utf-8")
 
-import balance_and_verify_17_23 as b
+from questions_kasim_1_7_data import QUESTIONS_KASIM_1_7, TEST_INFO
 
 RECIPIENTS = [
     "emiiruysal@gmail.com",
@@ -28,24 +29,15 @@ RECIPIENTS = [
     "hizarci84@gmail.com",
 ]
 
-# Türkiye saati (UTC+3) tarih -> Gün eşleşmesi
+# Türkiye saati (UTC+3) tarih -> Test (Gün) eşleşmesi (1-7 Kasım 2026)
 DAY_DATES = {
-    "2026-10-17": (1, "17 Ekim 2026 Cumartesi"),
-    "2026-10-18": (2, "18 Ekim 2026 Pazar"),
-    "2026-10-19": (3, "19 Ekim 2026 Pazartesi"),
-    "2026-10-20": (4, "20 Ekim 2026 Salı"),
-    "2026-10-21": (5, "21 Ekim 2026 Çarşamba"),
-    "2026-10-22": (6, "22 Ekim 2026 Perşembe"),
-    "2026-10-23": (6, "23 Ekim 2026 Cuma"),
-}
-
-DAY_TITLES = {
-    1: "1. GÜN (17 Ekim 2026) — Sorular 1 - 15 (Sayfa 17-20 Orijinal Sorular)",
-    2: "2. GÜN (18 Ekim 2026) — Sorular 16 - 30 (Sayfa 20-23 Orijinal + Benzer Sorular)",
-    3: "3. GÜN (19 Ekim 2026) — Sorular 31 - 45 (Pekiştirme / Benzer Sorular)",
-    4: "4. GÜN (20 Ekim 2026) — Sorular 46 - 60 (Pekiştirme / Benzer Sorular)",
-    5: "5. GÜN (21 Ekim 2026) — Sorular 61 - 75 (Pekiştirme / Benzer Sorular)",
-    6: "6. GÜN (22-23 Ekim 2026) — Sorular 76 - 90 (Pekiştirme / Benzer Sorular)",
+    "2026-11-01": (1, "1 Kasım 2026 Pazar"),
+    "2026-11-02": (2, "2 Kasım 2026 Pazartesi"),
+    "2026-11-03": (3, "3 Kasım 2026 Salı"),
+    "2026-11-04": (4, "4 Kasım 2026 Çarşamba"),
+    "2026-11-05": (5, "5 Kasım 2026 Perşembe"),
+    "2026-11-06": (6, "6 Kasım 2026 Cuma"),
+    "2026-11-07": (6, "7 Kasım 2026 Cumartesi"),
 }
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -72,7 +64,7 @@ def save_history(date_key: str, day_no: int):
     os.makedirs(DATA_DIR, exist_ok=True)
     hist = load_history()
     hist[date_key] = {
-        "day": day_no,
+        "test": day_no,
         "sent_at_trt": get_turkey_now().strftime("%Y-%m-%d %H:%M:%S"),
         "recipients": RECIPIENTS,
     }
@@ -81,16 +73,17 @@ def save_history(date_key: str, day_no: int):
 
 
 def build_html_for_day(day_no: int) -> tuple[str, str]:
-    day_qs = [q for q in b.QUESTIONS_17_23 if q["day"] == day_no]
+    day_qs = [q for q in QUESTIONS_KASIM_1_7 if q["day"] == day_no]
     q_start = day_qs[0]["no"]
     q_end = day_qs[-1]["no"]
-    day_subtitle = DAY_TITLES.get(day_no, f"{day_no}. GÜN (Sorular {q_start}-{q_end})")
+    day_label, test_title = TEST_INFO[day_no]
+    day_subtitle = f"{day_label} — {test_title}"
 
-    subject = f"📘 [EMİR - {day_no}. GÜN CEVAP ANAHTARI] 17-23 Ekim 2026 (Sorular {q_start}-{q_end})"
+    subject = f"📘 [EMİR - TEST {day_no} CEVAP ANAHTARI] EMİR 1-7 KASIM TARİHLERİ ÜSLÜ SAYILAR ÖDEVLENDİRME (Sorular {q_start}-{q_end})"
 
     letters = ["A", "B", "C", "D", "E"]
 
-    # Hızlı cevap matrisi (5 sütun x 3 satır = 15 soru)
+    # Hızlı cevap matrisi (5 sütun x 2 satır = 10 soru)
     matrix_rows = ""
     for r in range(0, len(day_qs), 5):
         chunk = day_qs[r : r + 5]
@@ -109,15 +102,16 @@ def build_html_for_day(day_no: int) -> tuple[str, str]:
     rows_html = ""
     for idx, q in enumerate(day_qs):
         ans_letter = q["answer"]
-        ans_val = q["options"][letters.index(ans_letter)][1]
-        q_type = f"Sayfa {q['page']} Orijinal Soru" if q.get("is_original") else f"{q.get('sim_to')}. Soruya Benzer"
+        raw_val = q["options"][letters.index(ans_letter)][1]
+        ans_val = raw_val.replace("<super>", "<sup>").replace("</super>", "</sup>")
+        q_source = q.get("topic", "Maarif Modeli Üslü İfadeler")
         bg = "#F8FAFC" if idx % 2 == 0 else "#FFFFFF"
         rows_html += (
             f"<tr style='background:{bg};'>"
             f"<td style='padding:9px 12px;border:1px solid #CBD5E1;text-align:center;font-weight:bold;color:#0F172A;'>{q['no']}</td>"
             f"<td style='padding:9px 12px;border:1px solid #CBD5E1;text-align:center;font-weight:bold;color:#1D4ED8;font-size:15px;'>{ans_letter}</td>"
             f"<td style='padding:9px 12px;border:1px solid #CBD5E1;text-align:left;color:#0F172A;font-weight:600;'>{ans_val}</td>"
-            f"<td style='padding:9px 12px;border:1px solid #CBD5E1;text-align:left;color:#64748B;font-size:12px;'>{q_type}</td>"
+            f"<td style='padding:9px 12px;border:1px solid #CBD5E1;text-align:left;color:#64748B;font-size:12px;'>{q_source}</td>"
             f"</tr>"
         )
 
@@ -133,7 +127,7 @@ def build_html_for_day(day_no: int) -> tuple[str, str]:
         MÜFİT HOCA ONLINE DERS &amp; ÖDEV TAKİP SİSTEMİ
       </div>
       <h2 style="margin:0;font-size:19px;font-weight:800;">
-        EMİR 17-23 EKİM 2026 TARİHLERİ ARASI ÇÖZÜLECEK SORULAR
+        EMİR 1-7 KASIM TARİHLERİ ÜSLÜ SAYILAR ÖDEVLENDİRME
       </h2>
       <p style="margin:8px 0 0 0;color:#DBEAFE;font-size:14px;font-weight:600;">
         {day_subtitle}
@@ -141,12 +135,12 @@ def build_html_for_day(day_no: int) -> tuple[str, str]:
     </div>
 
     <div style="padding:22px 24px;">
-      <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:12px 16px;margin-bottom:18px;">
+      <div style="background:#F0FDF4;border-1px solid #BBF7D0;border-radius:8px;padding:12px 16px;margin-bottom:18px;">
         <div style="font-size:13px;font-weight:bold;color:#166534;">
           ✅ GÜNLÜK SAAT 18:00 CEVAP ANAHTARI KONTROLÜ ({now_str})
         </div>
         <div style="font-size:12.5px;color:#15803D;margin-top:4px;line-height:1.45;">
-          Emir'in bugünkü 15 soruluk üslü ifadeler ödevinin cevap anahtarı aşağıdadır. Yanlış veya boş bırakılan soruları test üzerinde işaretleyiniz; dersimizde birlikte çözeceğiz.
+          Emir'in bugünkü 10 soruluk Üslü Sayılar testinin (Test {day_no}) cevap anahtarı aşağıdadır. Yanlış veya boş bırakılan soruları test üzerinde işaretleyiniz; dersimizde birlikte çözeceğiz.
         </div>
       </div>
 
@@ -158,15 +152,15 @@ def build_html_for_day(day_no: int) -> tuple[str, str]:
       </table>
 
       <div style="font-size:13px;font-weight:800;color:#1E3A8A;margin-bottom:8px;border-left:4px solid #0284C7;padding-left:8px;">
-        DETAYLI CEVAP DEĞERLERİ VE SORU KAYNAĞI
+        DETAYLI CEVAP DEĞERLERİ VE KİTAP KAZANIM KAYNAĞI
       </div>
       <table style="width:100%;border-collapse:collapse;font-size:13.5px;">
         <thead>
           <tr style="background:#1E3A8A;color:#FFFFFF;">
-            <th style="padding:9px;border:1px solid #CBD5E1;width:14%;">Soru</th>
-            <th style="padding:9px;border:1px solid #CBD5E1;width:16%;">Doğru Şık</th>
-            <th style="padding:9px;border:1px solid #CBD5E1;width:40%;text-align:left;">Doğru Cevap Değeri</th>
-            <th style="padding:9px;border:1px solid #CBD5E1;width:30%;text-align:left;">Kaynak / Kalıp</th>
+            <th style="padding:9px;border:1px solid #CBD5E1;width:12%;">Soru</th>
+            <th style="padding:9px;border:1px solid #CBD5E1;width:14%;">Doğru Şık</th>
+            <th style="padding:9px;border:1px solid #CBD5E1;width:36%;text-align:left;">Doğru Cevap Değeri</th>
+            <th style="padding:9px;border:1px solid #CBD5E1;width:38%;text-align:left;">Kitap Sayfa / Örnek Kalıbı</th>
           </tr>
         </thead>
         <tbody>
@@ -207,7 +201,7 @@ def send_day_email(day_no: int) -> bool:
             with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30) as server:
                 server.login(sender_email, app_password)
                 server.sendmail(sender_email, RECIPIENTS, msg.as_string())
-            print(f"[BAŞARILI] {day_no}. Gün cevap anahtarı {', '.join(RECIPIENTS)} adreslerine gönderildi (Deneme {attempt}).")
+            print(f"[BAŞARILI] Test {day_no} cevap anahtarı {', '.join(RECIPIENTS)} adreslerine gönderildi (Deneme {attempt}).")
             return True
         except Exception as exc:
             print(f"[UYARI] SMTP gönderim denemesi {attempt}/3 başarısız: {exc}")
@@ -243,14 +237,14 @@ def main():
 
     if input_day and input_day.isdigit():
         day_no = int(input_day)
-        date_key = f"manual_day_{day_no}_{today_str}"
+        date_key = f"kasim_manual_test_{day_no}_{today_str}"
     else:
         if today_str not in DAY_DATES:
-            print(f"[BİLGİ] Bugünün tarihi ({today_str}) 17-23 Ekim 2026 ödev takvimi dışında. Gönderim yapılmadı.")
+            print(f"[BİLGİ] Bugünün tarihi ({today_str}) 1-7 Kasım 2026 ödev takvimi dışında. Gönderim yapılmadı.")
             return
         day_no, label = DAY_DATES[today_str]
-        date_key = f"day_{day_no}_{today_str}"
-        print(f"[*] Bugünün ödev günü: {day_no}. Gün ({label})")
+        date_key = f"kasim_test_{day_no}_{today_str}"
+        print(f"[*] Bugünün ödev testi: Test {day_no} ({label})")
 
     history = load_history()
     if date_key in history and not force_send:
