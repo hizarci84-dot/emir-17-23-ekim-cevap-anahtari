@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-EMİR 1-7 KASIM TARİHLERİ ÜSLÜ SAYILAR ÖDEVLENDİRME
+9-14 KASIM ARASI MÜFİT HOCANIN KÖKLÜ İFADELER ÖDEVİ
 GÜNLÜK CEVAP ANAHTARI E-POSTA GÖNDERİM BOTU (GITHUB ACTIONS BULUT)
 Alıcılar:
   - emiiruysal@gmail.com
@@ -11,6 +11,7 @@ Saat: Her gün 18:00 (Türkiye Saati / UTC+3)
 """
 
 import os
+import re
 import sys
 import json
 import smtplib
@@ -20,7 +21,7 @@ from email.mime.text import MIMEText
 
 sys.stdout.reconfigure(encoding="utf-8")
 
-from questions_kasim_1_7_data import QUESTIONS_KASIM_1_7, TEST_INFO
+from questions_kasim_9_14_data import QUESTIONS_KASIM_9_14, TEST_INFO
 
 RECIPIENTS = [
     "emiiruysal@gmail.com",
@@ -29,20 +30,34 @@ RECIPIENTS = [
     "hizarci84@gmail.com",
 ]
 
-# Türkiye saati (UTC+3) tarih -> Test (Gün) eşleşmesi (1-7 Kasım 2026)
+# Türkiye saati (UTC+3) tarih -> Test (Gün) eşleşmesi (9-14 Kasım 2026)
 DAY_DATES = {
-    "2026-11-01": (1, "1 Kasım 2026 Pazar"),
-    "2026-11-02": (2, "2 Kasım 2026 Pazartesi"),
-    "2026-11-03": (3, "3 Kasım 2026 Salı"),
-    "2026-11-04": (4, "4 Kasım 2026 Çarşamba"),
-    "2026-11-05": (5, "5 Kasım 2026 Perşembe"),
-    "2026-11-06": (6, "6 Kasım 2026 Cuma"),
-    "2026-11-07": (6, "7 Kasım 2026 Cumartesi"),
+    "2026-11-09": (1, "9 Kasım 2026 Pazartesi"),
+    "2026-11-10": (2, "10 Kasım 2026 Salı"),
+    "2026-11-11": (3, "11 Kasım 2026 Çarşamba"),
+    "2026-11-12": (4, "12 Kasım 2026 Perşembe"),
+    "2026-11-13": (5, "13 Kasım 2026 Cuma"),
+    "2026-11-14": (6, "14 Kasım 2026 Cumartesi"),
 }
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 HISTORY_FILE = os.path.join(DATA_DIR, "sent_history.json")
+
+
+def latex_to_html(text: str) -> str:
+    """Convert inline LaTeX snippets to clean readable HTML for email clients."""
+    s = text.replace("$$", "").replace("$", "")
+    # \sqrt[n]{expr} -> <sup>n</sup>√(expr)
+    for _ in range(3):
+        s = re.sub(r"\\sqrt\[([^\]]+)\]\{([^{}]+)\}", r"<sup>\1</sup>√(\2)", s)
+        s = re.sub(r"\\sqrt\{([^{}]+)\}", r"√(\1)", s)
+        s = re.sub(r"\\frac\{([^{}]+)\}\{([^{}]+)\}", r"(\1)/(\2)", s)
+    s = s.replace(r"\cdot", " · ").replace(r"\pm", "±").replace(r"\leq", "≤").replace(r"\geq", "≥").replace(r"\;", " ")
+    # Convert braces in simple exponents like x^{2} -> x<sup>2</sup> and x^2 -> x<sup>2</sup>
+    s = re.sub(r"\^\{([^{}]+)\}", r"<sup>\1</sup>", s)
+    s = re.sub(r"\^([A-Za-z0-9\-]+)", r"<sup>\1</sup>", s)
+    return s.strip()
 
 
 def get_turkey_now() -> datetime:
@@ -73,13 +88,16 @@ def save_history(date_key: str, day_no: int):
 
 
 def build_html_for_day(day_no: int) -> tuple[str, str]:
-    day_qs = [q for q in QUESTIONS_KASIM_1_7 if q["day"] == day_no]
+    day_qs = [q for q in QUESTIONS_KASIM_9_14 if q["day"] == day_no]
     q_start = day_qs[0]["no"]
     q_end = day_qs[-1]["no"]
     day_label, test_title = TEST_INFO[day_no]
     day_subtitle = f"{day_label} — {test_title}"
 
-    subject = f"📘 [EMİR - TEST {day_no} CEVAP ANAHTARI] EMİR 1-7 KASIM TARİHLERİ ÜSLÜ SAYILAR ÖDEVLENDİRME (Sorular {q_start}-{q_end})"
+    subject = (
+        f"📘 [EMİR - TEST {day_no} CEVAP ANAHTARI] "
+        f"9-14 KASIM ARASI MÜFİT HOCANIN KÖKLÜ İFADELER ÖDEVİ (Sorular {q_start}-{q_end})"
+    )
 
     letters = ["A", "B", "C", "D", "E"]
 
@@ -103,8 +121,8 @@ def build_html_for_day(day_no: int) -> tuple[str, str]:
     for idx, q in enumerate(day_qs):
         ans_letter = q["answer"]
         raw_val = q["options"][letters.index(ans_letter)][1]
-        ans_val = raw_val.replace("<super>", "<sup>").replace("</super>", "</sup>")
-        q_source = q.get("topic", "Maarif Modeli Üslü İfadeler")
+        ans_val = latex_to_html(raw_val)
+        q_source = latex_to_html(q.get("topic", "Maarif Modeli Köklü İfadeler"))
         bg = "#F8FAFC" if idx % 2 == 0 else "#FFFFFF"
         rows_html += (
             f"<tr style='background:{bg};'>"
@@ -127,7 +145,7 @@ def build_html_for_day(day_no: int) -> tuple[str, str]:
         MÜFİT HOCA ONLINE DERS &amp; ÖDEV TAKİP SİSTEMİ
       </div>
       <h2 style="margin:0;font-size:19px;font-weight:800;">
-        EMİR 1-7 KASIM TARİHLERİ ÜSLÜ SAYILAR ÖDEVLENDİRME
+        9-14 KASIM ARASI MÜFİT HOCANIN KÖKLÜ İFADELER ÖDEVİ
       </h2>
       <p style="margin:8px 0 0 0;color:#DBEAFE;font-size:14px;font-weight:600;">
         {day_subtitle}
@@ -135,12 +153,12 @@ def build_html_for_day(day_no: int) -> tuple[str, str]:
     </div>
 
     <div style="padding:22px 24px;">
-      <div style="background:#F0FDF4;border-1px solid #BBF7D0;border-radius:8px;padding:12px 16px;margin-bottom:18px;">
+      <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:12px 16px;margin-bottom:18px;">
         <div style="font-size:13px;font-weight:bold;color:#166534;">
           ✅ GÜNLÜK SAAT 18:00 CEVAP ANAHTARI KONTROLÜ ({now_str})
         </div>
         <div style="font-size:12.5px;color:#15803D;margin-top:4px;line-height:1.45;">
-          Emir'in bugünkü 10 soruluk Üslü Sayılar testinin (Test {day_no}) cevap anahtarı aşağıdadır. Yanlış veya boş bırakılan soruları test üzerinde işaretleyiniz; dersimizde birlikte çözeceğiz.
+          Emir'in bugünkü 10 soruluk Köklü İfadeler testinin (Test {day_no}) cevap anahtarı aşağıdadır. Yanlış veya boş bırakılan soruları test üzerinde işaretleyiniz; dersimizde birlikte çözeceğiz.
         </div>
       </div>
 
@@ -186,7 +204,7 @@ def send_day_email(day_no: int) -> bool:
     subject, html_body = build_html_for_day(day_no)
 
     if not app_password:
-        print(f"[HATA] GMAIL_APP_PASSWORD ortam değişkeni tanımlı değil!")
+        print("[HATA] GMAIL_APP_PASSWORD ortam değişkeni tanımlı değil!")
         return False
 
     msg = MIMEMultipart("alternative")
@@ -237,13 +255,13 @@ def main():
 
     if input_day and input_day.isdigit():
         day_no = int(input_day)
-        date_key = f"kasim_manual_test_{day_no}_{today_str}"
+        date_key = f"kasim9_14_manual_test_{day_no}_{today_str}"
     else:
         if today_str not in DAY_DATES:
-            print(f"[BİLGİ] Bugünün tarihi ({today_str}) 1-7 Kasım 2026 ödev takvimi dışında. Gönderim yapılmadı.")
+            print(f"[BİLGİ] Bugünün tarihi ({today_str}) 9-14 Kasım 2026 ödev takvimi dışında. Gönderim yapılmadı.")
             return
         day_no, label = DAY_DATES[today_str]
-        date_key = f"kasim_test_{day_no}_{today_str}"
+        date_key = f"kasim9_14_test_{day_no}_{today_str}"
         print(f"[*] Bugünün ödev testi: Test {day_no} ({label})")
 
     history = load_history()
